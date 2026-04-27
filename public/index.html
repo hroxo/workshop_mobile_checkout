@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>SCO Lite – Continente</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green: #00883a;
+      --green-dark: #006228;
+      --green-light: #e6f5ec;
+      --red: #e53935;
+      --red-light: #fdecea;
+      --orange: #f57c00;
+      --blue: #1565c0;
+      --blue-light: #e3f0ff;
+      --grey: #f4f4f4;
+      --border: #ddd;
+      --text: #1a1a1a;
+      --muted: #777;
+      --white: #fff;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,.10);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    #root { display: flex; flex-direction: column; min-height: 100vh; }
+
+    .app-header {
+      background: var(--green);
+      color: var(--white);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    }
+    .app-header .brand { font-size: 1.25rem; font-weight: 700; letter-spacing: .5px; }
+    .app-header .brand span { color: #ffe100; }
+    .app-header .store-info { font-size: .75rem; opacity: .85; text-align: right; }
+
+    .main-content { flex: 1; padding: 16px; max-width: 520px; margin: 0 auto; width: 100%; }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      display: flex;
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      position: sticky;
+      bottom: 0;
+    }
+    .nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 4px 8px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: .7rem;
+      color: var(--muted);
+      gap: 3px;
+      transition: color .15s;
+    }
+    .nav-btn.active { color: var(--green); font-weight: 600; }
+    .nav-btn .icon { font-size: 1.4rem; line-height: 1; }
+    .nav-btn .badge {
+      background: var(--red);
+      color: #fff;
+      border-radius: 99px;
+      font-size: .6rem;
+      padding: 1px 5px;
+      min-width: 18px;
+      text-align: center;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 11px 18px;
+      border-radius: 8px;
+      border: none;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      width: 100%;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--green); color: var(--white); }
+    .btn-secondary { background: var(--grey); color: var(--text); }
+    .btn-danger { background: var(--red); color: var(--white); }
+    .btn-outline {
+      background: none;
+      border: 1.5px solid var(--green);
+      color: var(--green);
+    }
+    .btn-sm { padding: 7px 12px; font-size: .8rem; width: auto; }
+
+    /* ── Input ── */
+    .input-group { margin-bottom: 12px; }
+    .input-group label { display: block; font-size: .8rem; font-weight: 600; margin-bottom: 5px; color: var(--muted); }
+    .input-field {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .input-field:focus { border-color: var(--green); }
+
+    /* ── Scan screen ── */
+    .scan-area {
+      border: 2px dashed var(--green);
+      border-radius: var(--radius);
+      padding: 28px 16px;
+      text-align: center;
+      background: var(--green-light);
+      margin-bottom: 14px;
+      cursor: pointer;
+    }
+    .scan-icon { font-size: 3.5rem; margin-bottom: 8px; }
+    .scan-hint { color: var(--green-dark); font-size: .85rem; }
+
+    .product-list { display: flex; flex-direction: column; gap: 8px; }
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--grey);
+      border-radius: 8px;
+    }
+    .product-row .name { flex: 1; font-size: .88rem; font-weight: 500; }
+    .product-row .qty-ctrl { display: flex; align-items: center; gap: 6px; }
+    .qty-btn {
+      width: 26px; height: 26px; border-radius: 50%; border: none;
+      background: var(--green); color: #fff; font-size: 1rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .qty-btn.minus { background: var(--muted); }
+    .qty-val { min-width: 20px; text-align: center; font-weight: 700; }
+    .product-row .price { font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+    .del-btn { background: none; border: none; color: var(--red); font-size: 1.1rem; cursor: pointer; }
+
+    .total-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0 4px;
+      border-top: 1.5px solid var(--border);
+      margin-top: 4px;
+    }
+    .total-label { font-size: .9rem; color: var(--muted); }
+    .total-value { font-size: 1.6rem; font-weight: 800; color: var(--green-dark); }
+
+    /* ── Product picker modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      display: flex; align-items: flex-end; justify-content: center;
+      z-index: 200; animation: fadeIn .15s;
+    }
+    .modal {
+      background: var(--white); border-radius: 16px 16px 0 0;
+      width: 100%; max-width: 520px; max-height: 80vh;
+      display: flex; flex-direction: column; padding: 0;
+      animation: slideUp .2s;
+    }
+    .modal-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); }
+    .modal-header h3 { font-size: 1rem; }
+    .modal-body { overflow-y: auto; padding: 12px; flex: 1; }
+    .modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
+    .product-grid { display: flex; flex-direction: column; gap: 6px; }
+    .product-pick-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px; cursor: pointer;
+      border: 1.5px solid var(--border); transition: border-color .12s, background .12s;
+    }
+    .product-pick-row:hover { border-color: var(--green); background: var(--green-light); }
+    .product-pick-row .pname { flex: 1; font-size: .85rem; font-weight: 500; }
+    .product-pick-row .pprice { font-weight: 700; color: var(--green-dark); font-size: .9rem; }
+    .product-pick-row .pcat { font-size: .72rem; color: var(--muted); }
+
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+
+    /* ── Loyalty screen ── */
+    .loyalty-card {
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      border-radius: var(--radius);
+      color: var(--white);
+      padding: 20px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .loyalty-card .lc-name { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .loyalty-card .lc-num { font-size: .78rem; opacity: .8; letter-spacing: 1px; margin-bottom: 14px; }
+    .loyalty-card .lc-points { font-size: 2rem; font-weight: 800; }
+    .loyalty-card .lc-pts-label { font-size: .75rem; opacity: .8; }
+    .loyalty-card .lc-discount { margin-top: 10px; font-size: .82rem; background: rgba(255,255,255,.18); padding: 5px 10px; border-radius: 6px; display: inline-block; }
+
+    .loyalty-empty { text-align: center; padding: 30px; color: var(--muted); }
+    .loyalty-empty .big-icon { font-size: 3rem; margin-bottom: 10px; }
+
+    /* ── Payment screen ── */
+    .pay-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .pay-method {
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .12s, background .12s;
+      background: var(--white);
+    }
+    .pay-method:hover { border-color: var(--green); background: var(--green-light); }
+    .pay-method.selected { border-color: var(--green); background: var(--green-light); }
+    .pay-method .pm-icon { font-size: 2rem; margin-bottom: 6px; }
+    .pay-method .pm-name { font-size: .8rem; font-weight: 700; }
+    .pay-method .pm-desc { font-size: .7rem; color: var(--muted); }
+
+    .pay-summary { margin-bottom: 14px; }
+    .pay-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: .9rem; }
+    .pay-row.total { font-weight: 800; font-size: 1.1rem; border-top: 1.5px solid var(--border); padding-top: 10px; margin-top: 4px; }
+    .pay-row .label { color: var(--muted); }
+    .pay-row.total .label { color: var(--text); }
+
+    /* ── Feedback ── */
+    .toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: var(--white);
+      padding: 10px 20px; border-radius: 99px;
+      font-size: .85rem; font-weight: 600;
+      z-index: 300; animation: fadeIn .2s;
+      white-space: nowrap;
+    }
+    .toast.success { background: var(--green); }
+    .toast.error { background: var(--red); }
+
+    .success-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .success-screen .big-check { font-size: 5rem; margin-bottom: 16px; }
+    .success-screen h2 { font-size: 1.5rem; margin-bottom: 8px; }
+    .success-screen p { color: var(--muted); margin-bottom: 24px; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 22px; height: 22px;
+      border: 3px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .processing-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 16px; z-index: 400; color: var(--white); font-size: 1rem; font-weight: 600;
+    }
+    .processing-overlay .big-spinner {
+      width: 56px; height: 56px;
+      border: 5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 2px 8px; border-radius: 99px;
+      font-size: .7rem; font-weight: 600;
+    }
+    .chip-green { background: var(--green-light); color: var(--green-dark); }
+    .chip-orange { background: #fff3e0; color: var(--orange); }
+
+    .empty-cart { text-align: center; padding: 24px; color: var(--muted); }
+    .empty-cart .icon { font-size: 3rem; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+const API = '';
+
+// ── utils ────────────────────────────────────────────────────────────────────
+const fmt = (n) => new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(n);
+
+const PAYMENT_METHODS = [
+  { id: 'mbway',           icon: '📲', name: 'MB WAY',            desc: 'Pagamento móvel' },
+  { id: 'contactless',     icon: '📡', name: 'Contactless',       desc: 'NFC / Cartão' },
+  { id: 'continentepay',   icon: '🟢', name: 'Continente Pay',    desc: 'App Continente' },
+  { id: 'saldocontinente', icon: '💚', name: 'Saldo Continente',  desc: 'Saldo da conta' },
+  { id: 'pix',             icon: '⚡', name: 'PIX',               desc: 'Transferência instantânea' },
+];
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function Toast({ msg, type, onDone }) {
+  useEffect(() => { const t = setTimeout(onDone, 2200); return () => clearTimeout(t); }, []);
+  return <div className={`toast ${type}`}>{msg}</div>;
+}
+
+// ── Header ───────────────────────────────────────────────────────────────────
+function Header() {
+  const now = new Date();
+  const time = now.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  const date = now.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+  return (
+    <header className="app-header">
+      <div className="brand">SCO <span>Lite</span> · Continente</div>
+      <div className="store-info">
+        <div>Loja Lisboa Colombo</div>
+        <div>{date} {time} · Caixa 7</div>
+      </div>
+    </header>
+  );
+}
+
+// ── Product Picker Modal ─────────────────────────────────────────────────────
+function ProductPicker({ products, onSelect, onClose }) {
+  const [q, setQ] = useState('');
+  const filtered = products.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    p.barcode.includes(q) ||
+    p.category.toLowerCase().includes(q.toLowerCase())
+  );
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h3>Seleccionar Produto</h3>
+          <input
+            className="input-field"
+            style={{ marginTop: 10 }}
+            placeholder="Pesquisar nome, código de barras ou categoria…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            autoFocus
+          />
+        </div>
+        <div className="modal-body">
+          <div className="product-grid">
+            {filtered.map(p => (
+              <div key={p._id} className="product-pick-row" onClick={() => { onSelect(p); onClose(); }}>
+                <div style={{ flex: 1 }}>
+                  <div className="pname">{p.name}</div>
+                  <div className="pcat">{p.category} · {p.barcode}</div>
+                </div>
+                <div className="pprice">{fmt(p.price)}</div>
+              </div>
+            ))}
+            {!filtered.length && <div style={{ textAlign: 'center', padding: 20, color: 'var(--muted)' }}>Nenhum produto encontrado</div>}
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Scan Screen ──────────────────────────────────────────────────────────────
+function ScanScreen({ cart, products, onAdd, onUpdateQty, onRemove, onNext }) {
+  const [barcode, setBarcode] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const [toast, setToast] = useState(null);
+  const inputRef = useRef();
+
+  const addByBarcode = () => {
+    const p = products.find(x => x.barcode === barcode.trim());
+    if (!p) { setToast({ msg: 'Produto não encontrado', type: 'error' }); setBarcode(''); return; }
+    onAdd(p);
+    setToast({ msg: `✔ ${p.name}`, type: 'success' });
+    setBarcode('');
+    inputRef.current?.focus();
+  };
+
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  return (
+    <div>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      {showPicker && <ProductPicker products={products} onSelect={onAdd} onClose={() => setShowPicker(false)} />}
+
+      <div className="card">
+        <div className="card-title">📷 Leitura de Artigo</div>
+        <div className="scan-area" onClick={() => setShowPicker(true)}>
+          <div className="scan-icon">🔍</div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Simular Leitura de Código de Barras</div>
+          <div className="scan-hint">Toque para escolher um produto da lista</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            ref={inputRef}
+            className="input-field"
+            placeholder="Inserir código de barras manualmente…"
+            value={barcode}
+            onChange={e => setBarcode(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addByBarcode()}
+            style={{ flex: 1 }}
+          />
+          <button className="btn btn-primary btn-sm" onClick={addByBarcode} style={{ width: 'auto', padding: '0 16px' }}>OK</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">🛒 Carrinho ({cart.length} artigo{cart.length !== 1 ? 's' : ''})</div>
+        {cart.length === 0
+          ? <div className="empty-cart"><div className="icon">🛒</div><div>Carrinho vazio – adicione produtos acima</div></div>
+          : (
+            <div className="product-list">
+              {cart.map(item => (
+                <div key={item._id} className="product-row">
+                  <div className="name">{item.name}</div>
+                  <div className="qty-ctrl">
+                    <button className="qty-btn minus" onClick={() => onUpdateQty(item._id, item.qty - 1)}>−</button>
+                    <span className="qty-val">{item.qty}</span>
+                    <button className="qty-btn" onClick={() => onUpdateQty(item._id, item.qty + 1)}>+</button>
+                  </div>
+                  <div className="price">{fmt(item.price * item.qty)}</div>
+                  <button className="del-btn" onClick={() => onRemove(item._id)}>✕</button>
+                </div>
+              ))}
+              <div className="total-bar">
+                <span className="total-label">Subtotal</span>
+                <span className="total-value">{fmt(subtotal)}</span>
+              </div>
+            </div>
+          )}
+      </div>
+
+      <button className="btn btn-primary" onClick={onNext} disabled={cart.length === 0}>
+        Continuar →
+      </button>
+    </div>
+  );
+}
+
+// ── Loyalty Screen ───────────────────────────────────────────────────────────
+function LoyaltyScreen({ cartTotal, loyalty, onLoyaltyChange, onNext, onBack }) {
+  const [card, setCard] = useState(loyalty?.card || '');
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const lookup = async () => {
+    if (!card.trim()) return;
+    setLoading(true);
+    try {
+      const r = await fetch(`${API}/api/loyalty/${card.trim()}`);
+      if (!r.ok) { setToast({ msg: 'Cartão não encontrado', type: 'error' }); onLoyaltyChange(null); return; }
+      const data = await r.json();
+      onLoyaltyChange(data);
+      setToast({ msg: `Bem-vindo/a, ${data.name}!`, type: 'success' });
+    } catch { setToast({ msg: 'Erro de ligação', type: 'error' }); }
+    finally { setLoading(false); }
+  };
+
+  const skip = () => { onLoyaltyChange(null); onNext(); };
+  const discount = loyalty ? cartTotal * loyalty.discount : 0;
+  const pointsToEarn = Math.floor(cartTotal * 10);
+
+  const DEMO_CARDS = ['7640000000001', '7640000000002', '7640000000003'];
+
+  return (
+    <div>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+
+      <div className="card">
+        <div className="card-title">💳 Cartão Continente</div>
+        <div className="input-group">
+          <label>Número do cartão</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              className="input-field"
+              placeholder="Número do cartão…"
+              value={card}
+              onChange={e => setCard(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && lookup()}
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-primary btn-sm" onClick={lookup} disabled={loading} style={{ width: 'auto', padding: '0 16px' }}>
+              {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Validar'}
+            </button>
+          </div>
+        </div>
+        <div style={{ fontSize: '.75rem', color: 'var(--muted)', marginBottom: 4 }}>Cartões de demonstração:</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {DEMO_CARDS.map(c => (
+            <button key={c} className="btn btn-outline btn-sm" onClick={() => { setCard(c); }}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loyalty && (
+        <div className="loyalty-card">
+          <div className="lc-name">{loyalty.name}</div>
+          <div className="lc-num">Cartão {loyalty.card}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div className="lc-points">{loyalty.points.toLocaleString('pt-PT')}</div>
+              <div className="lc-pts-label">pontos acumulados</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700 }}>+{pointsToEarn} pts</div>
+              <div style={{ fontSize: '.75rem', opacity: .8 }}>nesta compra</div>
+            </div>
+          </div>
+          {loyalty.discount > 0 && (
+            <div className="lc-discount">🏷️ Desconto fidelização: {fmt(discount)} ({(loyalty.discount * 100).toFixed(0)}%)</div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-secondary" onClick={onBack} style={{ flex: 1 }}>← Voltar</button>
+        {loyalty
+          ? <button className="btn btn-primary" onClick={onNext} style={{ flex: 2 }}>Pagar {fmt(cartTotal - discount)} →</button>
+          : <button className="btn btn-outline" onClick={skip} style={{ flex: 2 }}>Continuar sem cartão →</button>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ── Payment Screen ───────────────────────────────────────────────────────────
+function PaymentScreen({ cart, loyalty, onBack, onReset }) {
+  const [method, setMethod] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [done, setDone] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const discount = loyalty ? subtotal * loyalty.discount : 0;
+  const total = subtotal - discount;
+  const pointsToEarn = Math.floor(subtotal * 10);
+
+  const pay = async () => {
+    if (!method) { setToast({ msg: 'Seleccione um método de pagamento', type: 'error' }); return; }
+    setProcessing(true);
+    try {
+      const body = {
+        items: cart.map(i => ({ productId: i._id, name: i.name, price: i.price, qty: i.qty })),
+        loyaltyCard: loyalty?.card || null,
+        paymentMethod: method,
+        total,
+        discount,
+        pointsEarned: loyalty ? pointsToEarn : 0,
+      };
+      const r = await fetch(`${API}/api/transactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error('Falha no pagamento');
+      const tx = await r.json();
+      await new Promise(res => setTimeout(res, 1400));
+      setDone(tx);
+    } catch (e) {
+      setToast({ msg: e.message || 'Erro no pagamento', type: 'error' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  if (done) {
+    const m = PAYMENT_METHODS.find(x => x.id === done.paymentMethod);
+    return (
+      <div className="card success-screen">
+        <div className="big-check">✅</div>
+        <h2>Pagamento Concluído!</h2>
+        <p>Obrigado pela sua compra no Continente.</p>
+        <div style={{ background: 'var(--grey)', borderRadius: 10, padding: 14, marginBottom: 20, textAlign: 'left' }}>
+          <div className="pay-row"><span>Total pago</span><strong>{fmt(done.total)}</strong></div>
+          <div className="pay-row"><span>Método</span><span>{m?.icon} {m?.name}</span></div>
+          {done.loyaltyCard && <div className="pay-row"><span>Pontos ganhos</span><span>+{done.pointsEarned} pts</span></div>}
+          <div className="pay-row"><span>Referência</span><span style={{ fontSize: '.75rem', color: 'var(--muted)' }}>{done.id?.slice(0, 8).toUpperCase()}</span></div>
+        </div>
+        <button className="btn btn-primary" onClick={onReset}>Nova Compra 🛒</button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      {processing && (
+        <div className="processing-overlay">
+          <div className="big-spinner" />
+          <div>A processar pagamento…</div>
+          <div style={{ fontSize: '.85rem', opacity: .8 }}>Por favor aguarde</div>
+        </div>
+      )}
+
+      <div className="card pay-summary">
+        <div className="card-title">🧾 Resumo</div>
+        <div className="pay-row"><span className="label">Subtotal ({cart.reduce((s,i)=>s+i.qty,0)} artigos)</span><span>{fmt(subtotal)}</span></div>
+        {discount > 0 && <div className="pay-row" style={{ color: 'var(--green)' }}><span>Desconto fidelização</span><span>−{fmt(discount)}</span></div>}
+        {loyalty && <div className="pay-row" style={{ color: 'var(--green)' }}><span>Pontos a ganhar</span><span>+{pointsToEarn} pts</span></div>}
+        <div className="pay-row total"><span className="label">Total</span><strong style={{ fontSize: '1.3rem' }}>{fmt(total)}</strong></div>
+      </div>
+
+      <div className="card">
+        <div className="card-title">💳 Forma de Pagamento</div>
+        <div className="pay-methods">
+          {PAYMENT_METHODS.map(pm => (
+            <div
+              key={pm.id}
+              className={`pay-method${method === pm.id ? ' selected' : ''}`}
+              onClick={() => setMethod(pm.id)}
+            >
+              <div className="pm-icon">{pm.icon}</div>
+              <div className="pm-name">{pm.name}</div>
+              <div className="pm-desc">{pm.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn-secondary" onClick={onBack} style={{ flex: 1 }}>← Voltar</button>
+        <button className="btn btn-primary" onClick={pay} disabled={!method} style={{ flex: 2 }}>
+          Pagar {fmt(total)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = useState('scan'); // scan | loyalty | payment
+  const [cart, setCart] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loyalty, setLoyalty] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/api/products`)
+      .then(r => r.json())
+      .then(setProducts)
+      .catch(console.error);
+  }, []);
+
+  const addToCart = useCallback((product) => {
+    setCart(prev => {
+      const existing = prev.find(i => i._id === product._id);
+      if (existing) return prev.map(i => i._id === product._id ? { ...i, qty: i.qty + 1 } : i);
+      return [...prev, { ...product, qty: 1 }];
+    });
+  }, []);
+
+  const updateQty = useCallback((id, qty) => {
+    if (qty <= 0) setCart(prev => prev.filter(i => i._id !== id));
+    else setCart(prev => prev.map(i => i._id === id ? { ...i, qty } : i));
+  }, []);
+
+  const removeItem = useCallback((id) => setCart(prev => prev.filter(i => i._id !== id)), []);
+
+  const reset = () => {
+    setCart([]);
+    setLoyalty(null);
+    setScreen('scan');
+  };
+
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const screens = {
+    scan: (
+      <ScanScreen
+        cart={cart} products={products}
+        onAdd={addToCart} onUpdateQty={updateQty} onRemove={removeItem}
+        onNext={() => setScreen('loyalty')}
+      />
+    ),
+    loyalty: (
+      <LoyaltyScreen
+        cartTotal={cartTotal} loyalty={loyalty}
+        onLoyaltyChange={setLoyalty}
+        onNext={() => setScreen('payment')}
+        onBack={() => setScreen('scan')}
+      />
+    ),
+    payment: (
+      <PaymentScreen
+        cart={cart} loyalty={loyalty}
+        onBack={() => setScreen('loyalty')}
+        onReset={reset}
+      />
+    ),
+  };
+
+  const NAV = [
+    { id: 'scan',    icon: '📷', label: 'Scan',       badge: cartCount || null },
+    { id: 'loyalty', icon: '💳', label: 'Fidelização', badge: loyalty ? '✓' : null },
+    { id: 'payment', icon: '💶', label: 'Pagamento',   badge: null },
+  ];
+
+  return (
+    <div id="root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <main className="main-content">
+        {screens[screen]}
+      </main>
+      <nav className="bottom-nav">
+        {NAV.map(n => (
+          <button
+            key={n.id}
+            className={`nav-btn${screen === n.id ? ' active' : ''}`}
+            onClick={() => {
+              if (n.id === 'loyalty' && cart.length === 0) return;
+              if (n.id === 'payment' && cart.length === 0) return;
+              setScreen(n.id);
+            }}
+          >
+            <span className="icon">{n.icon}</span>
+            <span>{n.label}</span>
+            {n.badge && <span className="badge">{n.badge}</span>}
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

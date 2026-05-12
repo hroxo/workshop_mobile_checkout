@@ -16,9 +16,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Databases ────────────────────────────────────────────────────────────────
 const db = {
-  products: new Datastore({ filename: path.join(__dirname, 'data/products.db'), autoload: true }),
-  customers: new Datastore({ filename: path.join(__dirname, 'data/customers.db'), autoload: true }),
+  products:     new Datastore({ filename: path.join(__dirname, 'data/products.db'),     autoload: true }),
+  customers:    new Datastore({ filename: path.join(__dirname, 'data/customers.db'),    autoload: true }),
   transactions: new Datastore({ filename: path.join(__dirname, 'data/transactions.db'), autoload: true }),
+  picklists:    new Datastore({ filename: path.join(__dirname, 'data/picklists.db'),    autoload: true }),
 };
 
 // ── Seed products ────────────────────────────────────────────────────────────
@@ -46,16 +47,47 @@ const LOYALTY_CUSTOMERS = [
   { card: '7640000000003', name: 'Ana Costa', points: 8900, discount: 0.10, active: true },
 ];
 
+const PICKLISTS_SEED = [
+  {
+    orderId: 'ORD-2024-001', type: 'delivery', customer: 'Entrega #4521',
+    status: 'pending', createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
+    items: [
+      { id: uuidv4(), name: 'Leite Mimosa Meio-Gordo 1L',      qty: 3, location: 'Corredor A · Prateleira 2', picked: false },
+      { id: uuidv4(), name: 'Arroz Agulha Cigala 1kg',          qty: 2, location: 'Corredor B · Prateleira 1', picked: false },
+      { id: uuidv4(), name: 'Azeite Gallo Clássico 750ml',      qty: 1, location: 'Corredor B · Prateleira 3', picked: false },
+      { id: uuidv4(), name: 'Maçã Golden Portugal 1kg',          qty: 2, location: 'Frescos · Corredor F',      picked: false },
+    ],
+  },
+  {
+    orderId: 'ORD-2024-002', type: 'click_collect', customer: 'Click & Collect #892',
+    status: 'in_progress', createdAt: new Date(Date.now() - 35 * 60000).toISOString(),
+    items: [
+      { id: uuidv4(), name: 'Queijo Serra da Estrela DOP 400g', qty: 1, location: 'Charcutaria · Balcão 1',    picked: true  },
+      { id: uuidv4(), name: 'Alheira de Mirandela 250g',         qty: 2, location: 'Charcutaria · Balcão 1',    picked: false },
+      { id: uuidv4(), name: 'Vinho Verde Alvarinho 750ml',       qty: 3, location: 'Corredor C · Prateleira 2', picked: false },
+      { id: uuidv4(), name: 'Pastel de Nata (pack 6)',           qty: 2, location: 'Padaria · Balcão 2',        picked: false },
+    ],
+  },
+  {
+    orderId: 'ORD-2024-003', type: 'delivery', customer: 'Entrega #4519',
+    status: 'completed', createdAt: new Date(Date.now() - 90 * 60000).toISOString(),
+    items: [
+      { id: uuidv4(), name: 'Cerveja Super Bock 33cl (pack 6)', qty: 2, location: 'Corredor D · Prateleira 4', picked: true },
+      { id: uuidv4(), name: 'Água das Pedras 1,5L (pack 6)',    qty: 1, location: 'Corredor D · Prateleira 1', picked: true },
+      { id: uuidv4(), name: 'Sardinha em Lata Ramirez 125g',    qty: 4, location: 'Corredor E · Prateleira 2', picked: true },
+    ],
+  },
+];
+
 function seedDB() {
   db.products.count({}, (err, count) => {
-    if (!count) {
-      db.products.insert(PRODUCTS, () => console.log('✔  15 produtos carregados'));
-    }
+    if (!count) db.products.insert(PRODUCTS, () => console.log('✔  15 produtos carregados'));
   });
   db.customers.count({}, (err, count) => {
-    if (!count) {
-      db.customers.insert(LOYALTY_CUSTOMERS, () => console.log('✔  Clientes fidelização carregados'));
-    }
+    if (!count) db.customers.insert(LOYALTY_CUSTOMERS, () => console.log('✔  Clientes fidelização carregados'));
+  });
+  db.picklists.count({}, (err, count) => {
+    if (!count) db.picklists.insert(PICKLISTS_SEED, () => console.log('✔  Picklists de demonstração carregadas'));
   });
 }
 
@@ -170,6 +202,65 @@ app.patch('/api/transactions/:id/cancel', (req, res) => {
       res.json({ message: 'Transação cancelada' });
     }
   );
+});
+
+// ── Picklists API ────────────────────────────────────────────────────────────
+app.get('/api/picklists', (req, res) => {
+  db.picklists.find({}).sort({ createdAt: -1 }).exec((err, docs) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(docs);
+  });
+});
+
+app.get('/api/picklists/:id', (req, res) => {
+  db.picklists.findOne({ _id: req.params.id }, (err, doc) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!doc) return res.status(404).json({ error: 'Picklist não encontrada' });
+    res.json(doc);
+  });
+});
+
+app.post('/api/picklists', (req, res) => {
+  const { orderId, type, customer, items } = req.body;
+  if (!orderId || !items?.length) return res.status(400).json({ error: 'orderId e items são obrigatórios' });
+  const doc = {
+    orderId, type: type || 'delivery', customer: customer || orderId,
+    status: 'pending', createdAt: new Date().toISOString(),
+    items: items.map(i => ({ ...i, id: uuidv4(), picked: false })),
+  };
+  db.picklists.insert(doc, (err, created) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json(created);
+  });
+});
+
+// Toggle a single item picked/unpicked
+app.patch('/api/picklists/:id/items/:itemId', (req, res) => {
+  db.picklists.findOne({ _id: req.params.id }, (err, doc) => {
+    if (err || !doc) return res.status(404).json({ error: 'Não encontrado' });
+    const items = doc.items.map(i =>
+      i.id === req.params.itemId ? { ...i, picked: !i.picked } : i
+    );
+    const allPicked = items.every(i => i.picked);
+    const status = allPicked ? 'completed' : 'in_progress';
+    db.picklists.update({ _id: req.params.id }, { $set: { items, status } }, {}, (e) => {
+      if (e) return res.status(500).json({ error: e.message });
+      db.picklists.findOne({ _id: req.params.id }, (e2, updated) => res.json(updated));
+    });
+  });
+});
+
+// Force-complete a picklist
+app.patch('/api/picklists/:id/complete', (req, res) => {
+  const items_update = {};
+  db.picklists.findOne({ _id: req.params.id }, (err, doc) => {
+    if (err || !doc) return res.status(404).json({ error: 'Não encontrado' });
+    const items = doc.items.map(i => ({ ...i, picked: true }));
+    db.picklists.update({ _id: req.params.id }, { $set: { items, status: 'completed' } }, {}, (e) => {
+      if (e) return res.status(500).json({ error: e.message });
+      db.picklists.findOne({ _id: req.params.id }, (e2, updated) => res.json(updated));
+    });
+  });
 });
 
 // ── Catch-all → SPA ──────────────────────────────────────────────────────────

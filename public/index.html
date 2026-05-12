@@ -320,6 +320,64 @@
     .empty-cart { text-align: center; padding: 24px; color: var(--muted); }
     .empty-cart .icon { font-size: 3rem; margin-bottom: 8px; }
 
+    /* ── Picklist ── */
+    .pl-order-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      border-left: 4px solid var(--border);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .pl-order-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.13); }
+    .pl-order-card.pending   { border-left-color: var(--orange); }
+    .pl-order-card.in_progress { border-left-color: var(--blue); }
+    .pl-order-card.completed { border-left-color: var(--green); }
+    .pl-order-info { flex: 1; min-width: 0; }
+    .pl-order-id   { font-weight: 700; font-size: .92rem; }
+    .pl-order-sub  { font-size: .75rem; color: var(--muted); margin-top: 2px; }
+    .pl-order-arrow { color: var(--muted); font-size: 1.1rem; }
+
+    .pl-status-badge {
+      font-size: .68rem; font-weight: 700; padding: 3px 8px;
+      border-radius: 99px; white-space: nowrap;
+    }
+    .pl-status-badge.pending    { background: #fff3e0; color: var(--orange); }
+    .pl-status-badge.in_progress { background: var(--blue-light); color: var(--blue); }
+    .pl-status-badge.completed  { background: var(--green-light); color: var(--green-dark); }
+
+    .pl-progress-bar {
+      height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; margin: 10px 0;
+    }
+    .pl-progress-fill { height: 100%; background: var(--green); border-radius: 99px; transition: width .3s; }
+
+    .pl-item-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; border-radius: 10px; margin-bottom: 8px;
+      border: 1.5px solid var(--border); background: var(--white);
+      cursor: pointer; transition: background .12s, border-color .12s;
+    }
+    .pl-item-row.picked { background: var(--green-light); border-color: var(--green); opacity: .75; }
+    .pl-item-row:hover  { border-color: var(--green); }
+    .pl-check {
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0; transition: background .15s, border-color .15s;
+    }
+    .pl-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
+    .pl-item-info { flex: 1; min-width: 0; }
+    .pl-item-name  { font-size: .88rem; font-weight: 600; }
+    .pl-item-loc   { font-size: .74rem; color: var(--muted); margin-top: 2px; }
+    .pl-item-qty   { font-size: .82rem; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+
+    .pl-empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .pl-empty .big-icon { font-size: 3rem; margin-bottom: 10px; }
+
     /* ── Demo FAB ── */
     .demo-fab {
       position: fixed;
@@ -740,6 +798,172 @@ function PaymentScreen({ cart, loyalty, onBack, onReset }) {
   );
 }
 
+// ── Picklist Screen ──────────────────────────────────────────────────────────
+const STATUS_LABEL = { pending: 'Pendente', in_progress: 'Em Curso', completed: 'Concluído' };
+const TYPE_ICON    = { delivery: '🚚', click_collect: '🏪' };
+
+function PicklistScreen() {
+  const [orders, setOrders]     = useState([]);
+  const [selected, setSelected] = useState(null); // active order object
+  const [loading, setLoading]   = useState(true);
+  const [toast, setToast]       = useState(null);
+  const [done, setDone]         = useState(false);
+
+  const fetchOrders = async () => {
+    try {
+      const r = await fetch('/api/picklists');
+      setOrders(await r.json());
+    } catch { setToast({ msg: 'Erro ao carregar ordens', type: 'error' }); }
+    finally { setLoading(false); }
+  };
+
+  const openOrder = async (id) => {
+    const r = await fetch(`/api/picklists/${id}`);
+    setSelected(await r.json());
+    setDone(false);
+  };
+
+  const toggleItem = async (itemId) => {
+    const r = await fetch(`/api/picklists/${selected._id}/items/${itemId}`, { method: 'PATCH' });
+    const updated = await r.json();
+    setSelected(updated);
+    setOrders(prev => prev.map(o => o._id === updated._id ? updated : o));
+    if (updated.status === 'completed') setDone(true);
+  };
+
+  const completeAll = async () => {
+    const r = await fetch(`/api/picklists/${selected._id}/complete`, { method: 'PATCH' });
+    const updated = await r.json();
+    setSelected(updated);
+    setOrders(prev => prev.map(o => o._id === updated._id ? updated : o));
+    setDone(true);
+  };
+
+  useEffect(() => { fetchOrders(); }, []);
+
+  // ── Completion screen ──────────────────────────────────────────────────────
+  if (done && selected) {
+    return (
+      <div className="card success-screen">
+        <div className="big-check">✅</div>
+        <h2>Picking Concluído!</h2>
+        <p>Ordem <strong>{selected.orderId}</strong> para <strong>{selected.customer}</strong> recolhida.</p>
+        <div style={{ background: 'var(--grey)', borderRadius: 10, padding: 14, marginBottom: 20, textAlign: 'left' }}>
+          <div className="pay-row"><span>Artigos recolhidos</span><strong>{selected.items.length}/{selected.items.length}</strong></div>
+          <div className="pay-row"><span>Tipo</span><span>{TYPE_ICON[selected.type]} {selected.type === 'delivery' ? 'Entrega ao domicílio' : 'Click & Collect'}</span></div>
+        </div>
+        <button className="btn btn-primary" onClick={() => { setSelected(null); setDone(false); fetchOrders(); }}>
+          ← Voltar às Ordens
+        </button>
+      </div>
+    );
+  }
+
+  // ── Order detail ───────────────────────────────────────────────────────────
+  if (selected) {
+    const pickedCount = selected.items.filter(i => i.picked).length;
+    const pct = Math.round((pickedCount / selected.items.length) * 100);
+    const allPicked = pickedCount === selected.items.length;
+
+    return (
+      <div>
+        {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1rem' }}>{selected.orderId}</div>
+              <div style={{ fontSize: '.78rem', color: 'var(--muted)' }}>{TYPE_ICON[selected.type]} {selected.customer}</div>
+            </div>
+            <span className={`pl-status-badge ${selected.status}`}>{STATUS_LABEL[selected.status]}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '.8rem', marginBottom: 4 }}>
+            <span>{pickedCount} de {selected.items.length} artigos recolhidos</span>
+            <strong>{pct}%</strong>
+          </div>
+          <div className="pl-progress-bar"><div className="pl-progress-fill" style={{ width: `${pct}%` }} /></div>
+        </div>
+
+        {selected.items.map(item => (
+          <div
+            key={item.id}
+            className={`pl-item-row${item.picked ? ' picked' : ''}`}
+            onClick={() => toggleItem(item.id)}
+          >
+            <div className={`pl-check${item.picked ? ' checked' : ''}`}>{item.picked ? '✓' : ''}</div>
+            <div className="pl-item-info">
+              <div className="pl-item-name" style={{ textDecoration: item.picked ? 'line-through' : 'none' }}>{item.name}</div>
+              <div className="pl-item-loc">📍 {item.location}</div>
+            </div>
+            <div className="pl-item-qty">×{item.qty}</div>
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button className="btn btn-secondary" onClick={() => setSelected(null)} style={{ flex: 1 }}>← Ordens</button>
+          {!allPicked
+            ? <button className="btn btn-outline" onClick={completeAll} style={{ flex: 2 }}>Concluir tudo ✓</button>
+            : <button className="btn btn-primary" onClick={() => setDone(true)} style={{ flex: 2 }}>Confirmar ✅</button>
+          }
+        </div>
+      </div>
+    );
+  }
+
+  // ── Orders list ─────────────────────────────────────────────────────────────
+  const pending   = orders.filter(o => o.status === 'pending');
+  const inProgress = orders.filter(o => o.status === 'in_progress');
+  const completed  = orders.filter(o => o.status === 'completed');
+
+  const OrderCard = ({ o }) => {
+    const picked = o.items.filter(i => i.picked).length;
+    return (
+      <div className={`pl-order-card ${o.status}`} onClick={() => openOrder(o._id)}>
+        <div style={{ fontSize: '1.5rem' }}>{TYPE_ICON[o.type] || '📦'}</div>
+        <div className="pl-order-info">
+          <div className="pl-order-id">{o.orderId}</div>
+          <div className="pl-order-sub">{o.customer} · {picked}/{o.items.length} artigos</div>
+        </div>
+        <span className={`pl-status-badge ${o.status}`}>{STATUS_LABEL[o.status]}</span>
+        <span className="pl-order-arrow">›</span>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+      {loading
+        ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>A carregar ordens…</div>
+        : orders.length === 0
+          ? <div className="pl-empty"><div className="big-icon">📋</div><div>Sem ordens de picking</div></div>
+          : (
+            <>
+              {inProgress.length > 0 && (
+                <>
+                  <div className="card-title" style={{ padding: '0 4px', marginBottom: 8 }}>🔵 Em Curso</div>
+                  {inProgress.map(o => <OrderCard key={o._id} o={o} />)}
+                </>
+              )}
+              {pending.length > 0 && (
+                <>
+                  <div className="card-title" style={{ padding: '0 4px', marginBottom: 8, marginTop: inProgress.length ? 12 : 0 }}>🟠 Pendentes</div>
+                  {pending.map(o => <OrderCard key={o._id} o={o} />)}
+                </>
+              )}
+              {completed.length > 0 && (
+                <>
+                  <div className="card-title" style={{ padding: '0 4px', marginBottom: 8, marginTop: 12 }}>✅ Concluídas</div>
+                  {completed.map(o => <OrderCard key={o._id} o={o} />)}
+                </>
+              )}
+            </>
+          )
+      }
+      <button className="btn btn-secondary" style={{ marginTop: 8 }} onClick={fetchOrders}>Actualizar ↻</button>
+    </div>
+  );
+}
+
 // ── Demo Panel ───────────────────────────────────────────────────────────────
 const DEMO_CUSTOMERS = [
   { card: '7640000000001', name: 'Maria Silva',    icon: '👩', pts: '1.250 pts · 5% desc' },
@@ -784,6 +1008,31 @@ function DemoPanel({ products, onAddProducts, onMockLoyalty }) {
               {c.icon} {c.label}
             </button>
           ))}
+
+          <div className="demo-section-title">📋 Mock Picklist</div>
+          <button className="demo-item-btn" onClick={async () => {
+            const items = [
+              { name: 'Leite Mimosa Meio-Gordo 1L',   qty: 2, location: 'Corredor A · Prateleira 2' },
+              { name: 'Arroz Agulha Cigala 1kg',       qty: 1, location: 'Corredor B · Prateleira 1' },
+              { name: 'Chocolate Pantagruel 200g',     qty: 3, location: 'Corredor E · Prateleira 3' },
+            ];
+            const n = Math.floor(Math.random() * 900) + 100;
+            await fetch('/api/picklists', { method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ orderId: `ORD-DEMO-${n}`, type: 'delivery', customer: `Entrega #${n}`, items }) });
+            setOpen(false);
+          }}>🚚 Nova Entrega</button>
+          <button className="demo-item-btn" onClick={async () => {
+            const items = [
+              { name: 'Queijo Serra da Estrela DOP 400g', qty: 1, location: 'Charcutaria · Balcão 1' },
+              { name: 'Vinho Verde Alvarinho 750ml',       qty: 2, location: 'Corredor C · Prateleira 2' },
+              { name: 'Pastel de Nata (pack 6)',           qty: 2, location: 'Padaria · Balcão 2' },
+              { name: 'Azeite Gallo Clássico 750ml',      qty: 1, location: 'Corredor B · Prateleira 3' },
+            ];
+            const n = Math.floor(Math.random() * 900) + 100;
+            await fetch('/api/picklists', { method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ orderId: `CC-DEMO-${n}`, type: 'click_collect', customer: `Click & Collect #${n}`, items }) });
+            setOpen(false);
+          }}>🏪 Click & Collect</button>
 
           <div className="demo-section-title">💳 Mock Cartão Continente</div>
           {DEMO_CUSTOMERS.map(c => (
@@ -870,12 +1119,14 @@ function App() {
         onReset={reset}
       />
     ),
+    picklist: <PicklistScreen />,
   };
 
   const NAV = [
-    { id: 'scan',    icon: '📷', label: 'Scan',       badge: cartCount || null },
-    { id: 'loyalty', icon: '💳', label: 'Fidelização', badge: loyalty ? '✓' : null },
-    { id: 'payment', icon: '💶', label: 'Pagamento',   badge: null },
+    { id: 'scan',     icon: '📷', label: 'Scan',       badge: cartCount || null },
+    { id: 'loyalty',  icon: '💳', label: 'Fidelização', badge: loyalty ? '✓' : null },
+    { id: 'payment',  icon: '💶', label: 'Pagamento',   badge: null },
+    { id: 'picklist', icon: '📋', label: 'Picking',     badge: null },
   ];
 
   return (
@@ -895,6 +1146,7 @@ function App() {
               if (n.id === 'payment' && cart.length === 0) return;
               setScreen(n.id);
             }}
+            style={n.id === 'picklist' ? { borderLeft: '1px solid var(--border)' } : {}}
           >
             <span className="icon">{n.icon}</span>
             <span>{n.label}</span>
